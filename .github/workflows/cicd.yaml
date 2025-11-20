@@ -22,4 +22,4 @@ jobs:
        - name: git version
          run: git --version
        - name: touch file
-         run: cat t1>> "my name is bhushan"
+         run: touch t1 t2 |ls 
