@@ -1,4 +1,4 @@
-name: First Workflow
+name: First trial
 on: 
   push:
     branches: "main"
@@ -14,3 +14,4 @@ jobs:
        run: |
             echo "My name is bhushan"
             echo "Tjis is my first GA job"
+            uname -a 
