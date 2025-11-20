@@ -1,0 +1,16 @@
+name: First Workflow
+on: 
+ push
+    branches: main 
+jobs:
+   first-job:
+     runs-on: ubuntu-latest
+     steps:
+     - name: Print greetings
+       run: echo "Hellow World"
+     - name: Print goodbye
+       run: echo "bye,bye"
+     - name: Two command
+       run: |
+            echo "My name is bhushan"
+            echo "Tjis is my first GA job"
