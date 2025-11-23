@@ -1,10 +1,10 @@
-name: Build & Push to GAR (Auto Version: Branch + Date)
+name: Build & Push to GAR (Auto Version From Branch + Date)
 
 on:
   workflow_dispatch:
     inputs:
       SERVICE_PATH:
-        description: "Folder like: IFLIchatbotapi/api"
+        description: "Example: IFLIchatbotapi/api"
         required: true
         type: string
 
@@ -16,24 +16,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # Extract version from branch + date
-    - name: Create version tag from branch + date
+    # Extract version from branch name + date
+    - name: Create Image Version
       id: version
       run: |
-        RAW_BRANCH="${GITHUB_REF#refs/heads/}"   # 1.3.0.2/IFLI
-        PART1=$(echo $RAW_BRANCH | cut -d'/' -f1)
-        PART2=$(echo $RAW_BRANCH | cut -d'/' -f2)
-        DATE=$(date +'%Y%m%d')                  # YYYYMMDD
-        VERSION="v${PART1}-${PART2}-${DATE}"
+        RAW_BRANCH="${GITHUB_REF#refs/heads/}"     # ex: 1.3.0.2/IFLI
+        PART1=$(echo $RAW_BRANCH | cut -d'/' -f1)  # 1.3.0.2
+        PART2=$(echo $RAW_BRANCH | cut -d'/' -f2)  # IFLI
+        DATE=$(date +'%Y%m%d')                     # 20241122
+        VERSION="v${PART1}-${PART2}-${DATE}"       # v1.3.0.2-IFLI-20241122
         echo "IMAGE_VERSION=$VERSION" >> $GITHUB_ENV
 
-    # Auto image name from folder name
-    - name: Extract image name from service path
+    # Auto-detect image name from folder
+    - name: Extract Image Name
       run: |
         SERVICE_NAME=$(basename $(dirname "${{ github.event.inputs.SERVICE_PATH }}"))
         echo "SERVICE_NAME=$SERVICE_NAME" >> $GITHUB_ENV
 
-    - name: Auth to Google Cloud
+    # Auth to Google Cloud
+    - name: Auth to GCP
       uses: google-github-actions/auth@v2
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
@@ -41,16 +42,19 @@ jobs:
     - name: Configure Docker for GAR
       run: gcloud auth configure-docker ${{ secrets.GAR_REGION }}-docker.pkg.dev --quiet
 
-    - name: Build Docker image
+    # Build Docker image
+    - name: Build Image
       run: |
         cd ${{ github.event.inputs.SERVICE_PATH }}
         docker build -t $SERVICE_NAME:$IMAGE_VERSION .
 
-    - name: Tag Docker image for GAR
+    # Tag image for GAR
+    - name: Tag Image
       run: |
         GAR_IMAGE="${{ secrets.GAR_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ryze-artifact-registry/$SERVICE_NAME/$SERVICE_NAME:$IMAGE_VERSION"
         echo "GAR_IMAGE=$GAR_IMAGE" >> $GITHUB_ENV
         docker tag $SERVICE_NAME:$IMAGE_VERSION $GAR_IMAGE
 
-    - name: Push image to GAR
+    # Push Docker image
+    - name: Push to GAR
       run: docker push $GAR_IMAGE
