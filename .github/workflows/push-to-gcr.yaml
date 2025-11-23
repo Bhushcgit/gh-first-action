@@ -1,0 +1,56 @@
+name: Build & Push to GAR (Auto Version: Branch + Date)
+
+on:
+  workflow_dispatch:
+    inputs:
+      SERVICE_PATH:
+        description: "Folder like: IFLIchatbotapi/api"
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Extract version from branch + date
+    - name: Create version tag from branch + date
+      id: version
+      run: |
+        RAW_BRANCH="${GITHUB_REF#refs/heads/}"   # 1.3.0.2/IFLI
+        PART1=$(echo $RAW_BRANCH | cut -d'/' -f1)
+        PART2=$(echo $RAW_BRANCH | cut -d'/' -f2)
+        DATE=$(date +'%Y%m%d')                  # YYYYMMDD
+        VERSION="v${PART1}-${PART2}-${DATE}"
+        echo "IMAGE_VERSION=$VERSION" >> $GITHUB_ENV
+
+    # Auto image name from folder name
+    - name: Extract image name from service path
+      run: |
+        SERVICE_NAME=$(basename $(dirname "${{ github.event.inputs.SERVICE_PATH }}"))
+        echo "SERVICE_NAME=$SERVICE_NAME" >> $GITHUB_ENV
+
+    - name: Auth to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+    - name: Configure Docker for GAR
+      run: gcloud auth configure-docker ${{ secrets.GAR_REGION }}-docker.pkg.dev --quiet
+
+    - name: Build Docker image
+      run: |
+        cd ${{ github.event.inputs.SERVICE_PATH }}
+        docker build -t $SERVICE_NAME:$IMAGE_VERSION .
+
+    - name: Tag Docker image for GAR
+      run: |
+        GAR_IMAGE="${{ secrets.GAR_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ryze-artifact-registry/$SERVICE_NAME/$SERVICE_NAME:$IMAGE_VERSION"
+        echo "GAR_IMAGE=$GAR_IMAGE" >> $GITHUB_ENV
+        docker tag $SERVICE_NAME:$IMAGE_VERSION $GAR_IMAGE
+
+    - name: Push image to GAR
+      run: docker push $GAR_IMAGE
