@@ -1,0 +1,64 @@
+name: LOCAL-TEST-TEMPLATE
+
+on:
+  workflow_call:
+    inputs:
+      PROJECT_PATH:
+        required: true
+        type: string
+      DOCKERFILE_PATH:
+        required: true
+        type: string
+      WORKFLOW:
+        required: true
+        type: string
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.version.outputs.version_tag }}
+      image_name: ${{ steps.version.outputs.image_name }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+          -u ${{ github.actor }} --password-stdin
+
+      - name: Generate Version Tag
+        id: version
+        run: |
+          APP_VERSION="v1.3.0.2"
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          TODAY=$(date +"%m%d%y")
+          VERSION_TAG="${APP_VERSION}-${BRANCH_NAME}-${TODAY}-${GITHUB_SHA}"
+
+          echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          echo "image_name=${{ inputs.WORKFLOW }}" >> $GITHUB_OUTPUT
+
+      - name: Build & Push Image (GHCR)
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/${{ inputs.WORKFLOW }}"
+          TAG="${{ steps.version.outputs.version_tag }}"
+
+          docker build -t $IMAGE:$TAG \
+            -f ${{ inputs.DOCKERFILE_PATH }} \
+            ${{ inputs.PROJECT_PATH }}
+
+          docker push $IMAGE:$TAG
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Mock Deploy
+        run: |
+          echo "Skipping real deployment…"
+          echo "Docker image pushed to GHCR successfully:"
+          echo "ghcr.io/${{ github.repository_owner }}/${{ needs.build.outputs.image_name }}:${{ needs.build.outputs.image_tag }}"

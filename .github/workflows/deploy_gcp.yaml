@@ -14,6 +14,16 @@ on:
 jobs:
 
   IFLIchatboatapi-Deployment:
+  if: github.event.inputs.Service == 'IFLIchatboatapi'
+  uses: ./.github/workflows/Template-LOCAL-TEST.yaml
+  with:
+    PROJECT_PATH: "./IFLIchatboatapi/api"
+    DOCKERFILE_PATH: "./IFLIchatboatapi/api/dockerfile"
+    WORKFLOW: IFLIchatboatapi
+  secrets: inherit
+
+
+  IIFLIchatboatapi-Deployment:
     if: github.event.inputs.Service == 'IFLIchatboatapi'
     uses: ./.github/workflows/Template-GCP.yaml
     with:
