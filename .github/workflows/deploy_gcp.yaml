@@ -1,0 +1,49 @@
+name: GCP-Deploy
+run-name: Deploy ${{ github.event.inputs.Service }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      Service:
+        type: choice
+        options:
+          - IFLIchatboatapi
+          - F1DataForecast
+          - F1ImageBackgroundEditor
+
+jobs:
+
+  IFLIchatboatapi-Deployment:
+    if: github.event.inputs.Service == 'IFLIchatboatapi'
+    uses: ./.github/workflows/Template-GCP.yaml
+    with:
+      PROJECT_PATH: "./IFLIchatboatapi/api"
+      DOCKERFILE_PATH: "./IFLIchatboatapi/api/dockerfile"
+      WORKFLOW: IFLIchatboatapi
+      DNS_URL: IFLIchatboatapi
+
+      # CLIENT-SPECIFIC VALUES
+      GAR_LOCATION: "us-central1"
+      PROJECT_ID: "client-1-gcp-prod"
+      REPO_NAME: "client1-repo"
+      CLUSTER_NAME: "client1-gke"
+      CLUSTER_LOCATION: "us-central1"
+
+    secrets: inherit
+
+
+  F1ImageBackgroundEditor-Deployment:
+    if: github.event.inputs.Service == 'F1ImageBackgroundEditor'
+    uses: ./.github/workflows/Template-GCP.yaml
+    with:
+      PROJECT_PATH: "./F1ImageBackgroundEditor/api"
+      DOCKERFILE_PATH: "./F1ImageBackgroundEditor/api/dockerfile"
+      WORKFLOW: f1imagebackgroundeditor
+      DNS_URL: f1imagebackgroundeditor
+
+      GAR_LOCATION: "asia-south1"
+      PROJECT_ID: "client-2-project"
+      REPO_NAME: "client2-registry"
+      CLUSTER_NAME: "client2-gke"
+      CLUSTER_LOCATION: "asia-south1-a"
+    secrets: inherit

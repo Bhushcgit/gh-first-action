@@ -1,0 +1,104 @@
+name: GCP-Template
+
+on:
+  workflow_call:
+    inputs:
+      PROJECT_PATH:
+        required: true
+        type: string
+      DOCKERFILE_PATH:
+        required: true
+        type: string
+      WORKFLOW:
+        required: true
+        type: string
+      DNS_URL:
+        required: true
+        type: string
+      GKE_NAMESPACE:
+        required: false
+        type: string
+
+      GAR_LOCATION:
+        required: true
+        type: string
+      PROJECT_ID:
+        required: true
+        type: string
+      REPO_NAME:
+        required: true
+        type: string
+      CLUSTER_NAME:
+        required: true
+        type: string
+      CLUSTER_LOCATION:
+        required: true
+        type: string
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.version.outputs.version_tag }}
+      image_name: ${{ steps.version.outputs.image_name }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ inputs.GAR_LOCATION }}-docker.pkg.dev --quiet
+
+      - name: Generate Version Tag
+        id: version
+        run: |
+          APP_VERSION="v1.3.0.2"
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          TODAY=$(date +"%m%d%y")
+          VERSION_TAG="${APP_VERSION}-${BRANCH_NAME}-${TODAY}-${GITHUB_SHA}"
+
+          echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          echo "image_name=${{ inputs.WORKFLOW }}" >> $GITHUB_OUTPUT
+
+      - name: Build & Push Image
+        run: |
+          IMAGE="${{ inputs.GAR_LOCATION }}-docker.pkg.dev/${{ inputs.PROJECT_ID }}/${{ inputs.REPO_NAME }}/${{ inputs.WORKFLOW }}"
+          TAG="${{ steps.version.outputs.version_tag }}"
+
+          docker build -t $IMAGE:$TAG -f ${{ inputs.DOCKERFILE_PATH }} ${{ inputs.PROJECT_PATH }}
+          docker push $IMAGE:$TAG
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ inputs.CLUSTER_NAME }}
+          location: ${{ inputs.CLUSTER_LOCATION }}
+          project_id: ${{ inputs.PROJECT_ID }}
+
+      - name: Deploy via Helm
+        run: |
+          helm upgrade ${{ inputs.WORKFLOW }} deploy/helm \
+            --install \
+            --namespace ${{ inputs.GKE_NAMESPACE || inputs.WORKFLOW }} \
+            --create-namespace \
+            --set image.repository="${{ inputs.GAR_LOCATION }}-docker.pkg.dev/${{ inputs.PROJECT_ID }}/${{ inputs.REPO_NAME }}/${{ needs.build.outputs.image_name }}" \
+            --set image.tag="${{ needs.build.outputs.image_tag }}" \
+    ###--set ingress.host="${{ inputs.DNS_URL }}.f1gcp.ai"
