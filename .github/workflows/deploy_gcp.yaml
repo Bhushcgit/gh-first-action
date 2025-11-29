@@ -13,24 +13,16 @@ on:
 
 jobs:
 
+
+
   IFLIchatboatapi-Deployment:
-    if: github.event.inputs.Service == 'IFLIchatboatapi'
-    uses: ./.github/workflows/Template-GCP.yaml
-    with:
-      PROJECT_PATH: "./IFLIchatboatapi/api"
-      DOCKERFILE_PATH: "./IFLIchatboatapi/api/dockerfile"
-      WORKFLOW: IFLIchatboatapi
-      DNS_URL: IFLIchatboatapi
-
-      # CLIENT-SPECIFIC VALUES
-      GAR_LOCATION: "us-central1"
-      PROJECT_ID: "client-1-gcp-prod"
-      REPO_NAME: "client1-repo"
-      CLUSTER_NAME: "client1-gke"
-      CLUSTER_LOCATION: "us-central1"
-
-    secrets: inherit
-
+  if: github.event.inputs.Service == 'IFLIchatboatapi'
+  uses: ./.github/workflows/Template-LOCAL-TEST.yaml
+  with:
+    PROJECT_PATH: "./IFLIchatboatapi/api"
+    DOCKERFILE_PATH: "./IFLIchatboatapi/api/dockerfile"
+    WORKFLOW: IFLIchatboatapi
+  secrets: inherit
 
   F1ImageBackgroundEditor-Deployment:
     if: github.event.inputs.Service == 'F1ImageBackgroundEditor'
