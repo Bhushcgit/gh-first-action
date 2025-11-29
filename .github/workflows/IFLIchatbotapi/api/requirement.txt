@@ -1,0 +1,13 @@
+
+gunicorn
+fastapi
+pydantic
+sqlalchemy
+psycopg2-binary
+langchain-openai
+uvicorn
+python-dotenv
+langchain_core
+python-dotenv
+langchain
+python-multipart

@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Now copy all app code into the image
+COPY . /app
+
+# Expose the port the app runs on
+EXPOSE 80
+
+# Start the application using gunicorn with uvicorn worker
+CMD ["gunicorn", "-b", ":80", "--timeout", "300", "-k", "uvicorn.workers.UvicornWorker", "app:app"]
